@@ -292,3 +292,5 @@ async def upsert_rates(session: AsyncSession, rates: dict[str, float], moment: d
         else:
             existing.rate = rate
             existing.updated_at = moment
+    # Флашим сразу: кэш должен быть виден последующим запросам в этой же сессии.
+    await session.flush()

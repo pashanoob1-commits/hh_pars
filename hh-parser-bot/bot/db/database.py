@@ -38,7 +38,9 @@ def create_engine(settings: Settings) -> AsyncEngine:
 
 
 def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
-    return async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
+    # autoflush=True: изменения флашатся перед запросами, поэтому, например,
+    # дедупликация и пауза подписки видят актуальное состояние в той же сессии.
+    return async_sessionmaker(engine, expire_on_commit=False, autoflush=True)
 
 
 async def init_db(engine: AsyncEngine) -> None:

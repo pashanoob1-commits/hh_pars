@@ -51,22 +51,29 @@ class CurrencyService:
         self._session = session
         self._client = client
         self._settings = settings
+        self._memory_cache: dict[str, float] | None = None
 
     async def get_rates(self, force_refresh: bool = False) -> dict[str, float]:
+        if self._memory_cache is not None and not force_refresh:
+            return self._memory_cache
+
         cached = await repo.get_cached_rates(self._session)
-        if cached and not force_refresh and not self._is_stale(cached):
+        if cached and not force_refresh and not await self._is_stale(cached):
+            self._memory_cache = cached
             return cached
 
         try:
             rates = await self._client.get_currency_rates()
         except HHAPIError as exc:
             logger.warning("Не удалось обновить курсы валют: %s", exc)
-            return cached or {"RUR": 1.0}
+            self._memory_cache = cached or {"RUR": 1.0}
+            return self._memory_cache
 
         if rates:
             await repo.upsert_rates(self._session, rates, utcnow())
             cached = rates
-        return cached or {"RUR": 1.0}
+        self._memory_cache = cached or {"RUR": 1.0}
+        return self._memory_cache
 
     async def _is_stale(self, cached: dict[str, float]) -> bool:
         """Проверяет дату обновления курсов в таблице currencies."""
