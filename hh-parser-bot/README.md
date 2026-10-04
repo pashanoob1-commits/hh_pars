@@ -30,6 +30,32 @@ APScheduler · pydantic-settings.
 
 БД диалект-агностична: SQLite по умолчанию, для PostgreSQL достаточно поменять `DATABASE_URL`.
 
+## Быстрый старт на сервере (VPS/Linux) одной командой
+
+```bash
+# на сервере под root (Ubuntu/Debian):
+
+curl -fsSL https://raw.githubusercontent.com/pashanoob1-commits/hh_pars/cline/cfs4mq4t/hh-parser-bot/deploy.sh -o deploy.sh
+bash deploy.sh
+```
+
+Скрипт: поставит Docker, скачает код, спросит токен бота и email для User-Agent,
+создаст `.env`, соберёт и запустит контейнер с автоперезапуском.
+
+Полезные режимы:
+
+```bash
+BOT_TOKEN='123:ABC' HH_USER_AGENT='hh-parser-bot/1.0 (me@example.com)' bash deploy.sh   # без вопросов
+SKIP_DOCKER=1 bash deploy.sh      # только подготовить файлы (без установки Docker)
+FORCE_ENV=1  bash deploy.sh       # перезаписать существующий .env
+```
+
+Если репозиторий приватный, передайте доступ через токен:
+
+```bash
+REPO_URL='https://ТОКЕН@github.com/pashanoob1-commits/hh_pars.git' bash deploy.sh
+```
+
 ## Быстрый старт
 
 ### 1. Получите токен бота
