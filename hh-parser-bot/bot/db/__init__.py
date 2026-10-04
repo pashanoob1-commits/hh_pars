@@ -1,4 +1,9 @@
-from bot.db.database import create_engine, create_session_factory, init_db, session_scope
+from bot.db.database import (
+    create_engine,
+    create_session_factory,
+    init_db,
+    session_scope,
+)
 from bot.db.models import (
     Base,
     BlockedEmployer,
@@ -11,12 +16,12 @@ from bot.db.models import (
 
 __all__ = [
     "Base",
-    "User",
-    "Subscription",
-    "SentVacancy",
-    "FavoriteVacancy",
     "BlockedEmployer",
     "CurrencyRate",
+    "FavoriteVacancy",
+    "SentVacancy",
+    "Subscription",
+    "User",
     "create_engine",
     "create_session_factory",
     "init_db",

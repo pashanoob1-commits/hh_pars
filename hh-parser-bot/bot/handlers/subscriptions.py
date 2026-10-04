@@ -12,10 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.config import Settings
 from bot.db import repositories as repo
-from bot.hh_api.client import HHAPIError, HHClient
 from bot.handlers import keyboards as kb
 from bot.handlers.parsing import format_stop_words, parse_positive_int, parse_stop_words
 from bot.handlers.states import AddSubscription
+from bot.hh_api.client import HHAPIError, HHClient
 from bot.services.dictionaries import employment_label, experience_label
 from bot.services.subscriptions import (
     SubscriptionError,
@@ -351,9 +351,9 @@ async def _toggle(
     service = SubscriptionService(session, settings)
     if await service.set_active(user_id, subscription_id, active):
         await message.answer(
-            ("▶️ Подписка #%s возобновлена." % subscription_id)
+            f"▶️ Подписка #{subscription_id} возобновлена."
             if active
-            else ("⏸ Подписка #%s поставлена на паузу." % subscription_id)
+            else f"⏸ Подписка #{subscription_id} поставлена на паузу."
         )
     else:
         await message.answer("Подписка не найдена.")

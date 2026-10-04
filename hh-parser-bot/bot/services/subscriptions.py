@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +10,7 @@ from bot.config import Settings
 from bot.db import repositories as repo
 from bot.db.models import Subscription
 from bot.hh_api.models import SearchParams
-from bot.services.dictionaries import experience_label, employment_label
+from bot.services.dictionaries import employment_label, experience_label
 
 
 class SubscriptionError(Exception):

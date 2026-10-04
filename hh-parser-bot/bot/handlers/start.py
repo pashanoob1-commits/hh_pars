@@ -38,21 +38,18 @@ async def cmd_start(
     settings: Settings,
     command: CommandObject | None = None,
 ) -> None:
-    user = await repo.get_or_create_user(
+    # Регистрируем пользователя при первом обращении (side effect).
+    await repo.get_or_create_user(
         session,
         telegram_id=message.from_user.id,
         username=message.from_user.username,
     )
     await message.answer(
-        "Привет, {name}! 👋\n\n"
+        f"Привет, {message.from_user.full_name}! 👋\n\n"
         "Я слежу за новыми вакансиями на hh.ru и присылаю их по вашим подпискам.\n"
-        "Интервал проверки: каждые {minutes} мин. Лимит подписок: {limit}.\n\n"
+        f"Интервал проверки: каждые {settings.poll_interval_minutes} мин. Лимит подписок: {settings.max_subscriptions_per_user}.\n\n"
         "Начните с команды /add — создам первую подписку.\n"
-        "Полный список команд — /help.".format(
-            name=message.from_user.full_name,
-            minutes=settings.poll_interval_minutes,
-            limit=settings.max_subscriptions_per_user,
-        )
+        "Полный список команд — /help."
     )
 
 

@@ -7,11 +7,11 @@ from bot.hh_api.client import (
 from bot.hh_api.models import Area, HHVacancy, SalaryRange, SearchParams
 
 __all__ = [
-    "HHClient",
+    "Area",
     "HHAPIError",
+    "HHClient",
     "HHForbiddenError",
     "HHRateLimitError",
-    "Area",
     "HHVacancy",
     "SalaryRange",
     "SearchParams",

@@ -5,7 +5,12 @@ from __future__ import annotations
 from aiogram import F, Router
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.config import Settings
@@ -213,7 +218,7 @@ async def cb_clear_words(
     await callback.answer("Очищено")
 
 
-@router.callback_query(F.data.startswith(f"sub:stopwords:"))
+@router.callback_query(F.data.startswith("sub:stopwords:"))
 async def cb_open_stopwords(
     callback: CallbackQuery, session: AsyncSession, settings: Settings
 ) -> None:

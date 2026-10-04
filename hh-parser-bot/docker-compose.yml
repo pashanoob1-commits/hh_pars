@@ -1,0 +1,22 @@
+services:
+  bot:
+    build: .
+    container_name: hh-parser-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Путь к БД внутри контейнера (volume ниже).
+      DATABASE_URL: sqlite+aiosqlite:////app/data/bot.db
+      LOG_FILE: /app/data/logs/bot.log
+    volumes:
+      - bot-data:/app/data
+    # Бот работает через long polling — порты не нужны.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  bot-data:

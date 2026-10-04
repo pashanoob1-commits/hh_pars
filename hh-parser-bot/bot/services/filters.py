@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from datetime import datetime
-from typing import Iterable, Sequence
 
 from bot.hh_api.models import HHVacancy
 from bot.utils.time import to_utc

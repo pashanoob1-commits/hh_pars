@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from bot.services import stats
 from bot.db.models import SentVacancy
+from bot.services import stats
 
 
 def record(vacancy_id: str, payload: dict, sent_at: datetime | None = None) -> SentVacancy:

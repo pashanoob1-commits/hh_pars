@@ -16,7 +16,6 @@ from bot.handlers import subscriptions as subscriptions_handler
 from bot.handlers.states import AddSubscription
 from bot.hh_api.models import HHVacancy
 from bot.services.subscriptions import SubscriptionService
-
 from tests.conftest import make_callback, make_message
 
 

@@ -51,7 +51,7 @@ class VacancyPoller:
                 total_sent += await self._poll_subscription(subscription_id)
             except HHAPIError as exc:
                 logger.error("Подписка %s: ошибка API hh.ru: %s", subscription_id, exc)
-            except Exception:  # noqa: BLE001 — одна битая подписка не должна рушить цикл
+            except Exception:
                 logger.exception("Подписка %s: непредвиденная ошибка опроса", subscription_id)
 
         if total_sent:

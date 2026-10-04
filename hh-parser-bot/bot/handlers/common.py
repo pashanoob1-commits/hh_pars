@@ -88,7 +88,7 @@ async def cb_hide_employer(
             + f"\n\n🚫 Компания «{employer_name}» скрыта.",
             reply_markup=None,
         )
-    except Exception:  # noqa: BLE001 — правка сообщения не критична
-        pass
+    except Exception as exc:  # noqa: BLE001 — правка сообщения не критична
+        logger.debug("Не удалось отредактировать сообщение: %s", exc)
 
     await callback.answer("🚫 Компания скрыта")

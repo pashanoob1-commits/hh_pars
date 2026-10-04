@@ -42,4 +42,4 @@ def create_scheduler(
     return scheduler
 
 
-__all__ = ["create_scheduler", "VacancyPoller"]
+__all__ = ["VacancyPoller", "create_scheduler"]

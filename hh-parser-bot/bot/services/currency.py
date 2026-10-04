@@ -41,7 +41,7 @@ def convert_amount(
         return int(amount)
 
     value_in_rur = float(amount) * float(from_rate)
-    return int(round(value_in_rur / float(to_rate)))
+    return round(value_in_rur / float(to_rate))
 
 
 class CurrencyService:

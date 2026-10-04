@@ -64,7 +64,7 @@ class HHVacancy(BaseModel):
         return " ".join(p for p in parts if p).lower()
 
     @classmethod
-    def from_api(cls, data: dict[str, Any]) -> "HHVacancy":
+    def from_api(cls, data: dict[str, Any]) -> HHVacancy:
         """Собирает модель из элемента выдачи API hh.ru."""
         salary = data.get("salary") or {}
         employer = data.get("employer") or {}

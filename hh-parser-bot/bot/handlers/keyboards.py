@@ -9,8 +9,8 @@ from bot.services.dictionaries import (
     EMPLOYMENT_OPTIONS,
     EXPERIENCE_OPTIONS,
     POPULAR_AREAS,
-    experience_label,
     employment_label,
+    experience_label,
 )
 
 # Префиксы callback_data
@@ -140,17 +140,17 @@ def blocked_employers_keyboard(blockers: list[tuple[int, str]]) -> InlineKeyboar
 
 
 __all__ = [
-    "popular_areas_keyboard",
-    "area_search_results_keyboard",
-    "experience_keyboard",
-    "employment_keyboard",
-    "only_with_salary_keyboard",
-    "confirm_keyboard",
-    "subscriptions_keyboard",
-    "subscription_manage_keyboard",
-    "blocked_employers_keyboard",
-    "experience_label",
-    "employment_label",
-    "WIZ",
     "SUB_ACTION",
+    "WIZ",
+    "area_search_results_keyboard",
+    "blocked_employers_keyboard",
+    "confirm_keyboard",
+    "employment_keyboard",
+    "employment_label",
+    "experience_keyboard",
+    "experience_label",
+    "only_with_salary_keyboard",
+    "popular_areas_keyboard",
+    "subscription_manage_keyboard",
+    "subscriptions_keyboard",
 ]

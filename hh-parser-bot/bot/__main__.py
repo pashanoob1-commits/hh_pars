@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 from pathlib import Path
 
 from aiogram import Bot, Dispatcher
@@ -98,6 +99,11 @@ async def main(settings: Settings | None = None) -> None:
 if __name__ == "__main__":
     try:
         asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit) as exc:
-        if isinstance(exc, SystemExit) and exc.code:
-            print(exc)
+    except KeyboardInterrupt:
+        pass
+    except SystemExit as exc:
+        # SystemExit с сообщением (например, нет BOT_TOKEN) — печатаем и выходим с кодом 1.
+        if exc.code:
+            print(exc, file=sys.stderr)
+            raise SystemExit(1) from None
+        raise

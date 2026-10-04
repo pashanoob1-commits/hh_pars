@@ -14,7 +14,7 @@ import asyncio
 import logging
 import random
 import time
-from typing import Any
+from typing import Any, Self
 
 import httpx
 
@@ -66,7 +66,7 @@ class HHClient:
         if self._owns_client:
             await self._client.aclose()
 
-    async def __aenter__(self) -> "HHClient":
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, *exc_info: object) -> None:

@@ -62,7 +62,7 @@ def make_poller(settings, session_factory, client, notifier) -> VacancyPoller:
     poller = VacancyPoller(
         bot=None, settings=settings, session_factory=session_factory, client=client
     )
-    poller._notifier = notifier  # noqa: SLF001 — подменяем отправку в тестах
+    poller._notifier = notifier
     return poller
 
 
