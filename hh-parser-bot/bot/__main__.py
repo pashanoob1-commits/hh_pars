@@ -20,6 +20,7 @@ from bot.middlewares.context import ContextMiddleware
 from bot.middlewares.db import DbSessionMiddleware
 from bot.scheduler import create_scheduler
 from bot.utils.logging_setup import setup_logging
+from bot.utils.permissions import apply_data_permissions
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,8 @@ async def main(settings: Settings | None = None) -> None:
         )
 
     ensure_sqlite_directory(settings)
+    # На PaaS/K8s volume может принадлежать root — готовим каталоги и права.
+    apply_data_permissions(settings)
 
     engine = create_engine(settings)
     await init_db(engine)

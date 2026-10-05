@@ -56,6 +56,49 @@ FORCE_ENV=1  bash deploy.sh       # перезаписать существую�
 REPO_URL='https://ТОКЕН@github.com/pashanoob1-commits/hh_pars.git' bash deploy.sh
 ```
 
+## Деплой на PaaS (Northflank / Railway / Render)
+
+Бот — это фоновый процесс (long polling), входящие порты ему не нужны. На PaaS он
+разворачивается как **worker / background service** (без публичного порта и health-check).
+
+**Настройки сервиса:**
+
+| Параметр | Значение |
+|---|---|
+| Тип сервиса | Worker / Background (не Web) |
+| Сборка | Dockerfile из Git |
+| Контекст сборки | `hh-parser-bot` (если репозиторий — корень) |
+| Путь к Dockerfile | `hh-parser-bot/Dockerfile` |
+| Команда запуска | `python -m bot` (уже в образе) |
+| Реплики | **ровно 1** (иначе будут дубли уведомлений) |
+
+**Переменные окружения (добавьте как secrets):**
+
+```env
+BOT_TOKEN=123456:ABC-DEF...
+HH_USER_AGENT=hh-parser-bot/1.0 (you@example.com)
+POLL_INTERVAL_MINUTES=15
+```
+
+**Хранилище — выберите один вариант:**
+
+1. **Managed PostgreSQL** (рекомендуется для PaaS — нет проблем с правами на volume):
+   создайте БД в панели и укажите
+   ```env
+   DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/dbname
+   ```
+   Драйвер `asyncpg` уже включён в образ (в `requirements-postgres.txt` — для локального запуска).
+
+2. **Persistent volume** (для SQLite): примонтируйте диск в `/app/data` и укажите
+   ```env
+   DATABASE_URL=sqlite+aiosqlite:////app/data/bot.db
+   LOG_FILE=/app/data/logs/bot.log
+   ```
+   Бот сам создаст каталоги и, если контейнер стартует от root, отдаст их рабочему
+   пользователю и понизит привилегии (`bot/utils/permissions.py`).
+
+> Без persistent volume/БД все подписки и история отправок потеряются при пересоздании контейнера.
+
 ## Быстрый старт
 
 ### 1. Получите токен бота

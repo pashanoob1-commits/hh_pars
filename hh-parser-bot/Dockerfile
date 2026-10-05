@@ -10,6 +10,13 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Драйвер PostgreSQL (для managed-БД на PaaS: Northflank, Railway, Render...).
+# По умолчанию включён; отключить: docker build --build-arg INSTALL_POSTGRES=0 .
+ARG INSTALL_POSTGRES=1
+RUN if [ "$INSTALL_POSTGRES" = "1" ]; then \
+      pip install --no-cache-dir "asyncpg>=0.29"; \
+    fi
+
 COPY bot ./bot
 COPY pytest.ini ./
 
