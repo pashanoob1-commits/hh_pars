@@ -56,6 +56,38 @@ FORCE_ENV=1  bash deploy.sh       # перезаписать существую�
 REPO_URL='https://ТОКЕН@github.com/pashanoob1-commits/hh_pars.git' bash deploy.sh
 ```
 
+## Деплой на GCP e2-micro (Always Free)
+
+Одна бесплатная VM e2-micro (1 ГБ RAM) отлично тянет этого бота. Условия бесплатности:
+регион `us-central1` / `us-west1` / `us-east1`, диск — standard persistent disk ≤ 30 ГБ,
+трафик на исходящие — 1 ГБ/мес (нашему боту хватает с большим запасом).
+
+1. **Compute Engine → Create instance:** machine type `e2-micro`, boot disk `Ubuntu 24.04 LTS`,
+   `30 GB standard persistent disk`, firewall — только SSH.
+2. Подключитесь по кнопке **SSH** в консоли (браузерный терминал, ключи не нужны).
+3. Установите бота одним из способов:
+
+```bash
+# Вариант A: Docker (нужен swap, иначе сборка образа может не уложиться в 1 ГБ RAM)
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+bash deploy.sh
+
+# Вариант B: без Docker, через systemd (легче для 1 ГБ RAM)
+cd hh-parser-bot && sudo bash deploy/systemd/install.sh
+```
+
+Управление при установке через systemd:
+
+```bash
+sudo journalctl -u hh-parser-bot -f      # логи
+sudo systemctl restart hh-parser-bot    # перезапуск
+sudo systemctl status hh-parser-bot     # состояние
+```
+
+> Диск VM постоянный, поэтому SQLite-база и подписки сохраняются между перезагрузками.
+> Включите в GCP Budget alerts — при выходе за лимиты free tier может прийти счёт.
+
 ## Деплой на PaaS (Northflank / Railway / Render)
 
 Бот — это фоновый процесс (long polling), входящие порты ему не нужны. На PaaS он

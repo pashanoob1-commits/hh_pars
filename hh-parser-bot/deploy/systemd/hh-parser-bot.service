@@ -1,0 +1,34 @@
+[Unit]
+Description=hh-parser-bot — Telegram-бот мониторинга вакансий hh.ru
+Documentation=https://github.com/pashanoob1-commits/hh_pars
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Пользователь и каталог переопределяются install.sh (по умолчанию — /opt/hh-parser-bot)
+User=hhbot
+Group=hhbot
+WorkingDirectory=/opt/hh-parser-bot
+EnvironmentFile=/opt/hh-parser-bot/.env
+ExecStart=/opt/hh-parser-bot/.venv/bin/python -m bot
+
+Restart=always
+RestartSec=10
+# Не даём процессу разрастись на маленькой VM (e2-micro: 1 ГБ RAM)
+MemoryMax=400M
+MemorySwapMax=512M
+
+# Минимальные привилегии
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/hh-parser-bot/data /opt/hh-parser-bot/.env
+
+# Логи смотреть: journalctl -u hh-parser-bot -f
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
