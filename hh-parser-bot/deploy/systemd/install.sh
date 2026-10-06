@@ -29,17 +29,34 @@ if [ "$(id -u)" != "0" ] && [ "$SKIP_SYSTEMD" != "1" ]; then
     die "Нужны права root: sudo bash deploy/systemd/install.sh"
 fi
 
-# 1. Системные пакеты для venv
-if [ "$SKIP_SYSTEMD" != "1" ]; then
-    log "Проверяю python3-venv..."
-    if ! python3 -m venv --help >/dev/null 2>&1; then
-        if command -v apt-get >/dev/null; then
-            apt-get update -qq
-            DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv python3-pip
-        elif command -v dnf >/dev/null; then
-            dnf install -y python3-pip
-        fi
+# 1. Системные пакеты для venv.
+# Важно: наличие модуля venv ничего не значит — нужен ещё ensurepip,
+# поэтому проверяем именно его (на Debian 13 без python3-venv он отсутствует).
+ensure_python_venv() {
+    if python3 -c "import ensurepip" >/dev/null 2>&1; then
+        return 0
     fi
+
+    log "Ставлю python3-venv (нужен для создания venv)..."
+    local pyver
+    pyver="$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
+
+    if command -v apt-get >/dev/null; then
+        apt-get update -qq
+        DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv python3-pip \
+            || DEBIAN_FRONTEND=noninteractive apt-get install -y "python${pyver}-venv" python3-pip
+    elif command -v dnf >/dev/null; then
+        dnf install -y python3-pip
+    else
+        die "Не удалось поставить python3-venv автоматически — поставьте вручную."
+    fi
+
+    python3 -c "import ensurepip" >/dev/null 2>&1 \
+        || die "ensurepip всё ещё недоступен: установите пакет python3-venv вручную."
+}
+
+if [ "$SKIP_SYSTEMD" != "1" ]; then
+    ensure_python_venv
 fi
 
 # 2. Пользователь бота (не root)
@@ -63,6 +80,8 @@ chmod 600 "$INSTALL_DIR/.env"
 
 # 4. Виртуальное окружение
 log "Создаю venv и ставлю зависимости (на e2-micro занимает пару минут)"
+# Чистим возможный недосозданный venv от прошлой попытки.
+rm -rf "$INSTALL_DIR/.venv"
 python3 -m venv "$INSTALL_DIR/.venv"
 # shellcheck disable=SC2086 — $PIP_ARGS намеренно разбивается на аргументы
 "$INSTALL_DIR/.venv/bin/pip" install $PIP_ARGS --quiet --upgrade pip
