@@ -19,8 +19,10 @@ SUB_ACTION = "sub"
 
 
 def popular_areas_keyboard() -> InlineKeyboardMarkup:
+    # В callback_data кладём только id: название региона может не влезть в лимит
+    # Telegram в 64 байта (например, длинные названия из /areas).
     rows = [
-        [InlineKeyboardButton(text=name, callback_data=f"{WIZ}:area:{area_id}:{name}")]
+        [InlineKeyboardButton(text=name, callback_data=f"{WIZ}:area:{area_id}")]
         for area_id, name in POPULAR_AREAS
     ]
     rows.append(
@@ -35,7 +37,7 @@ def popular_areas_keyboard() -> InlineKeyboardMarkup:
 
 def area_search_results_keyboard(areas: list[tuple[int, str]]) -> InlineKeyboardMarkup:
     rows = [
-        [InlineKeyboardButton(text=name, callback_data=f"{WIZ}:area:{area_id}:{name}")]
+        [InlineKeyboardButton(text=name, callback_data=f"{WIZ}:area:{area_id}")]
         for area_id, name in areas
     ]
     rows.append(
@@ -86,15 +88,20 @@ def confirm_keyboard() -> InlineKeyboardMarkup:
 
 def subscriptions_keyboard(subs: list[Subscription], action: str) -> InlineKeyboardMarkup:
     """Клавиатура выбора подписки для /del, /pause, /resume, /stats, /stopwords."""
-    rows = [
-        [
-            InlineKeyboardButton(
-                text=f"#{sub.id} {sub.query[:30]} ({sub.area_name})",
-                callback_data=f"{SUB_ACTION}:{action}:{sub.id}",
-            )
-        ]
-        for sub in subs
-    ]
+    rows = []
+    for sub in subs:
+        label = f"#{sub.id} {sub.query[:30]} ({sub.area_name})"
+        # Telegram ограничивает текст кнопки 64 символами.
+        if len(label) > 60:
+            label = label[:59] + "…"
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=label,
+                    callback_data=f"{SUB_ACTION}:{action}:{sub.id}",
+                )
+            ]
+        )
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -128,18 +135,40 @@ def subscription_manage_keyboard(subscription: Subscription) -> InlineKeyboardMa
 
 
 def blocked_employers_keyboard(blockers: list[tuple[int, str]]) -> InlineKeyboardMarkup:
-    rows = [
-        [
-            InlineKeyboardButton(
-                text=f"❌ {name}", callback_data=f"{SUB_ACTION}:unblock:{blocker_id}"
-            )
-        ]
-        for blocker_id, name in blockers
-    ]
+    rows = []
+    for blocker_id, name in blockers:
+        label = f"❌ {name}"
+        if len(label) > 60:
+            label = label[:59] + "…"
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=label, callback_data=f"{SUB_ACTION}:unblock:{blocker_id}"
+                )
+            ]
+        )
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
+FAVORITE_ACTION = "favdel"
+
+
+def favorite_item_keyboard(vacancy_id: str) -> InlineKeyboardMarkup:
+    """Кнопка удаления вакансии из избранного."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🗑 Убрать из избранного",
+                    callback_data=f"{FAVORITE_ACTION}:{vacancy_id}",
+                )
+            ]
+        ]
+    )
+
+
 __all__ = [
+    "FAVORITE_ACTION",
     "SUB_ACTION",
     "WIZ",
     "area_search_results_keyboard",
@@ -149,6 +178,7 @@ __all__ = [
     "employment_label",
     "experience_keyboard",
     "experience_label",
+    "favorite_item_keyboard",
     "only_with_salary_keyboard",
     "popular_areas_keyboard",
     "subscription_manage_keyboard",

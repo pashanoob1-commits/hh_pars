@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from html import escape
+
 from aiogram import F, Router
 from aiogram.filters import Command, CommandObject
 from aiogram.types import (
@@ -17,20 +19,21 @@ from bot.config import Settings
 from bot.db import repositories as repo
 from bot.handlers import keyboards as kb
 from bot.services import stats as stats_service
-from bot.services.formatter import format_amount
+from bot.services.formatter import CURRENCY_SIGNS, format_amount
 from bot.services.subscriptions import SubscriptionService, describe_subscription
 
 router = Router(name="stats")
 
 
-async def _get_user_id(session: AsyncSession, message: Message) -> int:
+async def _get_user_id(session: AsyncSession, event) -> int:
+    """ID пользователя бота (для callback — автор нажатия, а не сообщение бота)."""
     user = await repo.get_or_create_user(
-        session, message.from_user.id, message.from_user.username
+        session, event.from_user.id, event.from_user.username
     )
     return user.id
 
 
-def _render_stats(subscription, records) -> str:
+def _render_stats(subscription, records, base_currency: str = "RUR") -> str:
     lines = [
         f"📊 <b>Статистика подписки #{subscription.id}</b>",
         describe_subscription(subscription),
@@ -40,14 +43,17 @@ def _render_stats(subscription, records) -> str:
 
     median = stats_service.median_salary(records)
     if median is not None:
-        lines.append(f"💰 Медианная зарплата: <b>{format_amount(int(median))}</b>")
+        sign = CURRENCY_SIGNS.get(base_currency.upper(), base_currency)
+        lines.append(
+            f"💰 Медианная зарплата: <b>{format_amount(int(median))} {sign}</b>"
+        )
 
     skills = stats_service.top_skills(records, limit=10)
     if skills:
         lines.append("")
         lines.append("<b>Топ навыков:</b>")
         for skill, count in skills:
-            lines.append(f"• {skill} — {count}")
+            lines.append(f"• {escape(str(skill))} — {count}")
 
     dynamics = stats_service.dynamics_by_day(records)
     if dynamics:
@@ -99,7 +105,7 @@ async def cmd_stats(
 
     records = await repo.list_sent_for_subscription(session, user_id, subscription_id)
     await message.answer(
-        _render_stats(subscription, records),
+        _render_stats(subscription, records, settings.base_currency),
         reply_markup=_stats_keyboard(subscription_id),
     )
 
@@ -109,7 +115,7 @@ async def cb_stats(
     callback: CallbackQuery, session: AsyncSession, settings: Settings
 ) -> None:
     subscription_id = int(callback.data.rsplit(":", 1)[1])
-    user_id = await _get_user_id(session, callback.message)
+    user_id = await _get_user_id(session, callback)
     subscription = await SubscriptionService(session, settings).get(
         user_id, subscription_id
     )
@@ -119,7 +125,7 @@ async def cb_stats(
 
     records = await repo.list_sent_for_subscription(session, user_id, subscription_id)
     await callback.message.answer(
-        _render_stats(subscription, records),
+        _render_stats(subscription, records, settings.base_currency),
         reply_markup=_stats_keyboard(subscription_id),
     )
     await callback.answer()
@@ -130,7 +136,7 @@ async def cb_export_csv(
     callback: CallbackQuery, session: AsyncSession, settings: Settings
 ) -> None:
     subscription_id = int(callback.data.rsplit(":", 1)[1])
-    user_id = await _get_user_id(session, callback.message)
+    user_id = await _get_user_id(session, callback)
     service = SubscriptionService(session, settings)
     subscription = await service.get(user_id, subscription_id)
     if subscription is None:

@@ -26,6 +26,7 @@ def settings(tmp_path) -> Settings:
         first_run_limit=2,
         max_subscriptions_per_user=3,
         currency_cache_hours=24,
+        auto_migrate=False,
     )
 
 
@@ -62,7 +63,11 @@ def make_message(text: str = "", telegram_id: int = 100, username: str = "tester
 
 
 def make_callback(data: str, telegram_id: int = 100, text: str = "message"):
-    """Поддельный callback query."""
+    """Поддельный callback query.
+
+    Важно: `callback.message` — это сообщение, отправленное ботом, поэтому его
+    `from_user` — бот, а не нажавший пользователь. Именно так ведёт себя aiogram.
+    """
     callback = SimpleNamespace()
     callback.data = data
     callback.from_user = SimpleNamespace(id=telegram_id, username="tester", full_name="Test")
@@ -71,7 +76,10 @@ def make_callback(data: str, telegram_id: int = 100, text: str = "message"):
     message = SimpleNamespace()
     message.text = text
     message.html_text = text
-    message.from_user = callback.from_user
+    message.from_user = SimpleNamespace(
+        id=999999, username="hh_parser_bot", full_name="hh-parser-bot"
+    )
+    message.chat = SimpleNamespace(id=telegram_id)
     message.answer = AsyncMock()
     message.edit_text = AsyncMock()
     message.answer_document = AsyncMock()

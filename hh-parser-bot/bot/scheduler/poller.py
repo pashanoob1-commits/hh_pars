@@ -135,6 +135,9 @@ class VacancyPoller:
             if not delivered:
                 continue
 
+            # key_skills отсутствуют в выдаче /vacancies — добираем из карточки.
+            await self._enrich_key_skills(vacancy)
+
             await repo.mark_sent(
                 session,
                 user_id=user.id,
@@ -145,3 +148,32 @@ class VacancyPoller:
             sent += 1
 
         return sent
+
+    async def _enrich_key_skills(self, vacancy) -> None:
+        """Дозаписывает ключевые навыки из полной карточки вакансии.
+
+        Поисковая выдача hh.ru не содержит key_skills, поэтому без этого шага
+        топ навыков в /stats всегда был бы пустым. Ошибки API не критичны.
+        """
+        if not self._settings.fetch_key_skills or vacancy.key_skills:
+            return
+
+        get_vacancy = getattr(self._client, "get_vacancy", None)
+        if get_vacancy is None:
+            return
+
+        try:
+            raw = await get_vacancy(vacancy.id)
+        except Exception as exc:  # noqa: BLE001 — обогащение не должно ломать рассылку
+            logger.debug("Не удалось получить карточку вакансии %s: %s", vacancy.id, exc)
+            return
+
+        if not raw:
+            return
+        skills = [
+            item.get("name", "")
+            for item in (raw.get("key_skills") or [])
+            if isinstance(item, dict) and item.get("name")
+        ]
+        if skills:
+            vacancy.key_skills = skills

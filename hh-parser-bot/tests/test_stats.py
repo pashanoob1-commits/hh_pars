@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from bot.db.models import SentVacancy
 from bot.services import stats
@@ -12,7 +12,7 @@ def record(vacancy_id: str, payload: dict, sent_at: datetime | None = None) -> S
     item = SentVacancy(
         user_id=1, subscription_id=1, vacancy_id=vacancy_id, payload=payload
     )
-    item.sent_at = sent_at or datetime(2024, 5, 1, 10, 0, tzinfo=timezone.utc)
+    item.sent_at = sent_at or datetime(2024, 5, 1, 10, 0, tzinfo=UTC)
     return item
 
 
@@ -39,9 +39,9 @@ def test_top_skills():
 
 def test_dynamics_by_day():
     records = [
-        record("1", {}, datetime(2024, 5, 1, tzinfo=timezone.utc)),
-        record("2", {}, datetime(2024, 5, 1, 3, tzinfo=timezone.utc)),
-        record("3", {}, datetime(2024, 5, 2, tzinfo=timezone.utc)),
+        record("1", {}, datetime(2024, 5, 1, tzinfo=UTC)),
+        record("2", {}, datetime(2024, 5, 1, 3, tzinfo=UTC)),
+        record("3", {}, datetime(2024, 5, 2, tzinfo=UTC)),
     ]
     result = stats.dynamics_by_day(records)
     assert [(day.isoformat(), count) for day, count in result] == [

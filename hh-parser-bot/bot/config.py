@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     base_currency: str = "RUR"
     max_subscriptions_per_user: int = 10
     currency_cache_hours: int = 24
+    # В поисковой выдаче hh.ru нет key_skills — тянем их из полной карточки
+    # вакансии при отправке уведомления (нужно для топ-навыков в /stats).
+    fetch_key_skills: bool = True
+
+    # --- Миграции ---
+    # true: при старте применяются Alembic-миграции (для продакшена).
+    # false: схема создаётся через create_all (тесты/разработка).
+    auto_migrate: bool = True
 
     # --- Логирование ---
     log_level: str = "INFO"

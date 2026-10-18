@@ -30,12 +30,40 @@ die()  { printf '\033[1;31m[x]\033[0m %s\n' "$*" >&2; exit 1; }
 
 need_cmd() { command -v "$1" >/dev/null 2>&1; }
 
+ensure_git() {
+    if need_cmd git; then
+        return 0
+    fi
+    if [ "$(id -u)" != "0" ]; then
+        die "Не найден git. Установите: sudo apt-get install -y git (или sudo dnf install -y git)"
+    fi
+    log "Устанавливаю git (нужен для скачивания кода)..."
+    if need_cmd apt-get; then
+        apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y git
+    elif need_cmd dnf; then
+        dnf install -y git
+    else
+        die "Не удалось поставить git автоматически — установите вручную."
+    fi
+    need_cmd git || die "git всё ещё недоступен."
+}
+
 install_docker() {
+    if [ "$(id -u)" != "0" ]; then
+        die "Для установки Docker нужны права root. Запустите: sudo bash deploy.sh (или SKIP_DOCKER=1 bash deploy.sh)"
+    fi
+
     if need_cmd docker; then
         log "Docker уже установлен: $(docker --version)"
     else
         log "Устанавливаю Docker (может занять пару минут)..."
-        curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+        if need_cmd curl; then
+            curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+        elif need_cmd wget; then
+            wget -qO /tmp/get-docker.sh https://get.docker.com
+        else
+            die "Нужен curl или wget, чтобы скачать установщик Docker."
+        fi
         sh /tmp/get-docker.sh
         rm -f /tmp/get-docker.sh
     fi
@@ -50,21 +78,47 @@ install_docker() {
             die "Не удалось поставить docker compose автоматически — поставьте вручную."
         fi
     fi
+
+    # На свежей VM демон может быть ещё не запущен.
+    if ! docker info >/dev/null 2>&1; then
+        log "Запускаю демон Docker..."
+        if need_cmd systemctl; then
+            systemctl enable --now docker || true
+        fi
+        sleep 2
+    fi
+    if ! docker info >/dev/null 2>&1; then
+        die "Docker установлен, но демон не отвечает. Проверьте: systemctl status docker"
+    fi
     log "docker compose готов"
 }
 
 fetch_code() {
+    # 1. Скрипт запущен уже из папки проекта.
     if [ -f "./docker-compose.yml" ] && [ -d "./bot" ]; then
         WORKDIR="$(pwd)"
         log "Использую код из текущей папки: $WORKDIR"
         return
     fi
 
+    # 2. Код уже скачивался раньше: $WORKDIR — корень репозитория, проект — в $SUBDIR.
+    #    Без этой проверки повторный запуск падал с «Не найден .env.example».
+    if [ -f "$WORKDIR/$SUBDIR/docker-compose.yml" ]; then
+        WORKDIR="$WORKDIR/$SUBDIR"
+        log "Использую скачанный ранее код: $WORKDIR"
+        return
+    fi
+
+    # 3. Есть локальный клон — обновляем и переходим в подпапку проекта.
     if [ -d "$WORKDIR/.git" ]; then
         log "Обновляю код в $WORKDIR"
         git -C "$WORKDIR" fetch --depth 1 origin "$BRANCH"
         git -C "$WORKDIR" checkout "$BRANCH"
         git -C "$WORKDIR" pull --ff-only origin "$BRANCH" || true
+        if [ -f "$WORKDIR/$SUBDIR/docker-compose.yml" ]; then
+            WORKDIR="$WORKDIR/$SUBDIR"
+        fi
+        log "Код обновлён: $WORKDIR"
         return
     fi
 
@@ -161,6 +215,7 @@ main() {
         warn "SKIP_DOCKER=1 — Docker не устанавливаю и не запускаю"
     fi
 
+    ensure_git
     fetch_code
     setup_env
 

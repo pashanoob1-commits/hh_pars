@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from html import escape
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -127,18 +128,21 @@ class SubscriptionService:
 
 
 def describe_subscription(subscription: Subscription) -> str:
-    """Краткое человекочитаемое описание подписки."""
-    parts = [f"«{subscription.query}»", subscription.area_name or f"area={subscription.area_id}"]
+    """Краткое человекочитаемое описание подписки (безопасное для HTML-режима)."""
+    parts = [
+        f"«{escape(subscription.query)}»",
+        escape(subscription.area_name or f"area={subscription.area_id}"),
+    ]
     if subscription.experience:
-        parts.append(f"опыт: {experience_label(subscription.experience)}")
+        parts.append(f"опыт: {escape(experience_label(subscription.experience))}")
     if subscription.employment:
-        parts.append(f"занятость: {employment_label(subscription.employment)}")
+        parts.append(f"занятость: {escape(employment_label(subscription.employment))}")
     if subscription.salary_min or subscription.salary_max:
         low = subscription.salary_min or "…"
         high = subscription.salary_max or "…"
-        parts.append(f"зарплата: {low}–{high}")
+        parts.append(f"зарплата: {low}–{high} ₽")
     if subscription.only_with_salary:
         parts.append("только с зарплатой")
     if subscription.stop_words:
-        parts.append(f"стоп-слова: {', '.join(subscription.stop_words)}")
+        parts.append(f"стоп-слова: {escape(', '.join(subscription.stop_words))}")
     return "; ".join(parts)

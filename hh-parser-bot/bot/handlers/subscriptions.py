@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from html import escape
 
 from aiogram import F, Router
 from aiogram.filters import Command, CommandObject
@@ -16,7 +17,11 @@ from bot.handlers import keyboards as kb
 from bot.handlers.parsing import format_stop_words, parse_positive_int, parse_stop_words
 from bot.handlers.states import AddSubscription
 from bot.hh_api.client import HHAPIError, HHClient
-from bot.services.dictionaries import employment_label, experience_label
+from bot.services.dictionaries import (
+    KNOWN_AREA_NAMES,
+    employment_label,
+    experience_label,
+)
 from bot.services.subscriptions import (
     SubscriptionError,
     SubscriptionLimitReached,
@@ -28,9 +33,10 @@ logger = logging.getLogger(__name__)
 router = Router(name="subscriptions")
 
 
-async def _get_user_id(session: AsyncSession, message: Message) -> int:
+async def _get_user_id(session: AsyncSession, event: Message | CallbackQuery) -> int:
+    """ID пользователя бота. Для callback берём автора нажатия, а не сообщение бота."""
     user = await repo.get_or_create_user(
-        session, message.from_user.id, message.from_user.username
+        session, event.from_user.id, event.from_user.username
     )
     return user.id
 
@@ -103,6 +109,9 @@ async def wizard_area_search_result(
         area_options={str(area.id): area.name for area in areas}
     )
     options = [(area.id, area.name) for area in areas]
+    # Возвращаемся в состояние выбора региона: иначе кнопки результата поиска
+    # (и «Назад») не совпадут ни с одним обработчиком состояния area_search.
+    await state.set_state(AddSubscription.area)
     await message.answer(
         "Выберите регион:", reply_markup=kb.area_search_results_keyboard(options)
     )
@@ -110,8 +119,15 @@ async def wizard_area_search_result(
 
 @router.callback_query(AddSubscription.area, F.data.startswith(f"{kb.WIZ}:area:"))
 async def wizard_area_picked(callback: CallbackQuery, state: FSMContext) -> None:
-    _, _, area_id, area_name = callback.data.split(":", 3)
-    await state.update_data(area_id=int(area_id), area_name=area_name)
+    area_id = int(callback.data.rsplit(":", 1)[1])
+    data = await state.get_data()
+    options: dict[str, str] = data.get("area_options") or {}
+    area_name = (
+        options.get(str(area_id))
+        or KNOWN_AREA_NAMES.get(area_id)
+        or f"Регион {area_id}"
+    )
+    await state.update_data(area_id=area_id, area_name=area_name)
     await state.set_state(AddSubscription.experience)
     await callback.message.answer(
         "Шаг 3/8. Требуемый опыт работы:", reply_markup=kb.experience_keyboard()
@@ -208,13 +224,13 @@ def _format_preview(data: dict) -> str:
     if data.get("salary_min") or data.get("salary_max"):
         salary = f"{data.get('salary_min') or '…'} – {data.get('salary_max') or '…'} ₽"
     lines = [
-        f"🔎 Запрос: <b>{data.get('query')}</b>",
-        f"📍 Регион: {data.get('area_name')}",
+        f"🔎 Запрос: <b>{escape(str(data.get('query') or ''))}</b>",
+        f"📍 Регион: {escape(str(data.get('area_name') or ''))}",
         f"🎓 Опыт: {experience_label(data.get('experience'))}",
         f"💼 Занятость: {employment_label(data.get('employment'))}",
         f"💰 Зарплата: {salary}",
         f"💵 Только с зарплатой: {'да' if data.get('only_with_salary') else 'нет'}",
-        f"🚫 Стоп-слова: {format_stop_words(data.get('stop_words') or [])}",
+        f"🚫 Стоп-слова: {escape(format_stop_words(data.get('stop_words') or []))}",
     ]
     return "\n".join(lines)
 
@@ -364,7 +380,7 @@ async def _toggle(
 async def cb_delete(
     callback: CallbackQuery, session: AsyncSession, settings: Settings
 ) -> None:
-    user_id = await _get_user_id(session, callback.message)
+    user_id = await _get_user_id(session, callback)
     subscription_id = int(callback.data.rsplit(":", 1)[1])
     if await SubscriptionService(session, settings).delete(user_id, subscription_id):
         await callback.message.edit_text(f"🗑 Подписка #{subscription_id} удалена.")
@@ -391,7 +407,7 @@ async def cb_resume(
 async def _cb_toggle(
     callback: CallbackQuery, session: AsyncSession, settings: Settings, *, active: bool
 ) -> None:
-    user_id = await _get_user_id(session, callback.message)
+    user_id = await _get_user_id(session, callback)
     subscription_id = int(callback.data.rsplit(":", 1)[1])
     service = SubscriptionService(session, settings)
 

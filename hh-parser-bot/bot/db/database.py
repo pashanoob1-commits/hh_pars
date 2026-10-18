@@ -27,11 +27,15 @@ def create_engine(settings: Settings) -> AsyncEngine:
     engine = create_async_engine(settings.database_url, future=True)
 
     if settings.is_sqlite:
-        # SQLite по умолчанию не проверяет внешние ключи — включаем.
+        # SQLite по умолчанию не проверяет внешние ключи и не ждёт освобождения
+        # блокировки — включаем FK, WAL и таймаут, чтобы планировщик и хендлеры
+        # не получали «database is locked».
         @event.listens_for(engine.sync_engine, "connect")
-        def _enable_sqlite_fk(dbapi_connection, _record) -> None:  # pragma: no cover
+        def _configure_sqlite(dbapi_connection, _record) -> None:  # pragma: no cover
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA busy_timeout=5000")
             cursor.close()
 
     return engine
@@ -43,11 +47,26 @@ def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSessi
     return async_sessionmaker(engine, expire_on_commit=False, autoflush=True)
 
 
-async def init_db(engine: AsyncEngine) -> None:
-    """Создаёт отсутствующие таблицы (простейшая миграция для MVP)."""
+async def init_db(engine: AsyncEngine, settings: Settings | None = None) -> None:
+    """Готовит схему БД.
+
+    По умолчанию (AUTO_MIGRATE=true) применяет Alembic-миграции; с
+    auto_migrate=False — create_all для тестов/разработки.
+    """
+    if (
+        settings is not None
+        and settings.auto_migrate
+        and ":memory:" not in settings.database_url
+    ):
+        from bot.db.migrate import upgrade_database
+
+        await upgrade_database(engine, settings.database_url)
+        logger.info("Миграции БД применены")
+        return
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    logger.info("Схема БД готова")
+    logger.info("Схема БД готова (create_all)")
 
 
 async def session_scope(

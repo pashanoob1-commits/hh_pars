@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from html import escape
+
 from aiogram import F, Router
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
@@ -51,13 +53,14 @@ def _render(subscription_id: int, words: list[str]) -> str:
         f"🚫 <b>Стоп-слова подписки #{subscription_id}</b>\n"
         "Вакансии, в названии или описании которых встречается хотя бы одно слово, "
         "не показываются.\n\n"
-        f"Сейчас: {format_stop_words(words)}"
+        f"Сейчас: {escape(format_stop_words(words))}"
     )
 
 
-async def _get_user_id(session: AsyncSession, message: Message) -> int:
+async def _get_user_id(session: AsyncSession, event) -> int:
+    """ID пользователя бота (для callback — автор нажатия, а не сообщение бота)."""
     user = await repo.get_or_create_user(
-        session, message.from_user.id, message.from_user.username
+        session, event.from_user.id, event.from_user.username
     )
     return user.id
 
@@ -133,7 +136,7 @@ async def cmd_stopwords(
 async def cb_add_words(
     callback: CallbackQuery, state: FSMContext, session: AsyncSession, settings: Settings
 ) -> None:
-    user_id = await _get_user_id(session, callback.message)
+    user_id = await _get_user_id(session, callback)
     subscription_id = int(callback.data.rsplit(":", 1)[1])
     service = SubscriptionService(session, settings)
     if await service.get(user_id, subscription_id) is None:
@@ -180,7 +183,7 @@ async def cb_remove_word(
 ) -> None:
     _, _, subscription_id_raw, index_raw = callback.data.split(":")
     subscription_id, index = int(subscription_id_raw), int(index_raw)
-    user_id = await _get_user_id(session, callback.message)
+    user_id = await _get_user_id(session, callback)
 
     service = SubscriptionService(session, settings)
     subscription = await service.get(user_id, subscription_id)
@@ -205,7 +208,7 @@ async def cb_clear_words(
     callback: CallbackQuery, session: AsyncSession, settings: Settings
 ) -> None:
     subscription_id = int(callback.data.rsplit(":", 1)[1])
-    user_id = await _get_user_id(session, callback.message)
+    user_id = await _get_user_id(session, callback)
     service = SubscriptionService(session, settings)
     if await service.get(user_id, subscription_id) is None:
         await callback.answer("Подписка не найдена", show_alert=True)
@@ -223,7 +226,7 @@ async def cb_open_stopwords(
     callback: CallbackQuery, session: AsyncSession, settings: Settings
 ) -> None:
     subscription_id = int(callback.data.rsplit(":", 1)[1])
-    user_id = await _get_user_id(session, callback.message)
+    user_id = await _get_user_id(session, callback)
     subscription = await SubscriptionService(session, settings).get(
         user_id, subscription_id
     )

@@ -22,8 +22,22 @@ log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[!]\033[0m %s\n' "$*"; }
 die()  { printf '\033[1;31m[x]\033[0m %s\n' "$*" >&2; exit 1; }
 
-[ -f "./bot/__main__.py" ] || die "Запустите скрипт из папки hh-parser-bot"
+[ -f "./bot/__main__.py" ] || [ -f "./hh-parser-bot/bot/__main__.py" ] \
+    || die "Запустите скрипт из папки hh-parser-bot или из корня репозитория"
+
+# Если скрипт запустили из корня репозитория — переходим в папку проекта.
+if [ ! -f "./bot/__main__.py" ] && [ -f "./hh-parser-bot/bot/__main__.py" ]; then
+    cd hh-parser-bot
+fi
+
 [ -f "./.env" ] || die "Нет файла .env — скопируйте .env.example в .env и укажите BOT_TOKEN"
+
+if grep -q '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11' ./.env; then
+    die "В .env остался токен-заглушка из .env.example — укажите реальный BOT_TOKEN от @BotFather."
+fi
+if ! grep -qE '^BOT_TOKEN=["'"'"']?[0-9]+:[^"'"'"']+' ./.env; then
+    die "В .env не задан BOT_TOKEN (ожидается формат 123456:ABC-DEF...)."
+fi
 
 if [ "$(id -u)" != "0" ] && [ "$SKIP_SYSTEMD" != "1" ]; then
     die "Нужны права root: sudo bash deploy/systemd/install.sh"
@@ -112,7 +126,17 @@ if [ "$SKIP_SYSTEMD" != "1" ]; then
 
     systemctl daemon-reload
     systemctl enable --now "$SERVICE_NAME"
-    sleep 3
+    # Даём процессу время на старт (и на первый рестарт при ошибке конфигурации).
+    for _ in $(seq 1 10); do
+        systemctl is-active --quiet "$SERVICE_NAME" && break
+        sleep 1
+    done
+    if ! systemctl is-active --quiet "$SERVICE_NAME"; then
+        warn "Сервис не запустился. Последние строки журнала:"
+        journalctl -u "$SERVICE_NAME" -n 30 --no-pager || true
+        die "Исправьте ошибку выше и перезапустите: systemctl restart $SERVICE_NAME"
+    fi
+    log "Сервис активен"
     systemctl --no-pager --full status "$SERVICE_NAME" | head -20 || true
     echo
     log "Готово! Откройте бота в Telegram и отправьте /start"

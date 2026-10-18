@@ -1,7 +1,7 @@
--- Начальная схема hh-parser-bot (MVP).
--- Применяется автоматически через Base.metadata.create_all при старте,
--- этот файл — эквивалент для ручного применения / будущих Alembic-миграций.
--- Диалект-агностично: SQLite и PostgreSQL.
+-- Начальная схема hh-parser-bot для SQLite (ручной bootstrap).
+-- Рекомендуемый способ — Alembic: `python -m bot.db.migrate upgrade`.
+-- Для PostgreSQL используйте 001_init.postgres.sql.
+-- Диалект-агностичный эквивалент — в bot/migrations/versions/20261018_0001_initial.py.
 
 CREATE TABLE IF NOT EXISTS users (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
