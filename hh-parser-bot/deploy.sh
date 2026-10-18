@@ -30,6 +30,24 @@ die()  { printf '\033[1;31m[x]\033[0m %s\n' "$*" >&2; exit 1; }
 
 need_cmd() { command -v "$1" >/dev/null 2>&1; }
 
+ensure_git() {
+    if need_cmd git; then
+        return 0
+    fi
+    if [ "$(id -u)" != "0" ]; then
+        die "Не найден git. Установите: sudo apt-get install -y git (или sudo dnf install -y git)"
+    fi
+    log "Устанавливаю git (нужен для скачивания кода)..."
+    if need_cmd apt-get; then
+        apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y git
+    elif need_cmd dnf; then
+        dnf install -y git
+    else
+        die "Не удалось поставить git автоматически — установите вручную."
+    fi
+    need_cmd git || die "git всё ещё недоступен."
+}
+
 install_docker() {
     if [ "$(id -u)" != "0" ]; then
         die "Для установки Docker нужны права root. Запустите: sudo bash deploy.sh (или SKIP_DOCKER=1 bash deploy.sh)"
@@ -197,6 +215,7 @@ main() {
         warn "SKIP_DOCKER=1 — Docker не устанавливаю и не запускаю"
     fi
 
+    ensure_git
     fetch_code
     setup_env
 

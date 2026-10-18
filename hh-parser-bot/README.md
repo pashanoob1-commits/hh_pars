@@ -154,6 +154,7 @@ journalctl -u hh-parser-bot -n 100 --no-pager
 | `permission denied while trying to connect to the Docker daemon` | Запускайте через `sudo bash deploy.sh` или добавьте пользователя в группу: `sudo usermod -aG docker $USER` (нужен повторный вход). |
 | `unable to open database file` | Нет прав на каталог `data/`. Для systemd: `sudo chown -R hhbot:hhbot /opt/hh-parser-bot`. В контейнере бот сам готовит права, если стартует от root. |
 | `403` от `api.hh.ru` | `HH_USER_AGENT` должен содержать контакт: `hh-parser-bot/1.0 (you@example.com)`. |
+| `git: command not found` | Минимальный образ без git — актуальный `deploy.sh` ставит git сам; вручную: `sudo apt-get install -y git`. |
 | Сборка Docker падает / процесс убит на e2-micro | Не хватает RAM: добавьте swap 2 ГБ (команды в разделе про GCP) или ставьте без Docker через systemd. |
 | `Не найден .env.example` при повторном `deploy.sh` | Обновите скрипт (в старых версиях повторный запуск не переходил в подпапку проекта). |
 | `система не имеет доступа к интернету` / SSL | Проверьте DNS и прокси; для pip можно передать `PIP_ARGS='--proxy http://…'` в `install.sh`. |
