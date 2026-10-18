@@ -36,11 +36,14 @@ APScheduler · pydantic-settings.
 # на сервере под root (Ubuntu/Debian):
 
 curl -fsSL https://raw.githubusercontent.com/pashanoob1-commits/hh_pars/cline/cfs4mq4t/hh-parser-bot/deploy.sh -o deploy.sh
-bash deploy.sh
+sudo bash deploy.sh
 ```
 
 Скрипт: поставит Docker, скачает код, спросит токен бота и email для User-Agent,
 создаст `.env`, соберёт и запустит контейнер с автоперезапуском.
+
+Повторный запуск безопасен: код обновится (`git pull`), существующий `.env`
+останется нетронутым. Для перезаписи `.env` используйте `FORCE_ENV=1`.
 
 Полезные режимы:
 
@@ -130,6 +133,38 @@ POLL_INTERVAL_MINUTES=15
    пользователю и понизит привилегии (`bot/utils/permissions.py`).
 
 > Без persistent volume/БД все подписки и история отправок потеряются при пересоздании контейнера.
+
+## Если что-то не запускается
+
+Сначала посмотрите логи:
+
+```bash
+# Docker
+docker compose logs -f --tail=100 bot
+
+# systemd
+journalctl -u hh-parser-bot -n 100 --no-pager
+```
+
+| Симптом | Причина и решение |
+|---|---|
+| `BOT_TOKEN не задан` | `.env` лежит не рядом с `bot/` или токен пуст. В systemd проверьте `WorkingDirectory` и `EnvironmentFile`, в Docker — `env_file` в `docker-compose.yml`. |
+| `ensurepip is not available` / `No module named venv` | На Debian/Ubuntu: `sudo apt-get install -y python3-venv python3-pip`. Актуальный `install.sh` ставит пакет сам. |
+| `Conflict: terminated by other getUpdates request` | Запущено два экземпляра бота (например, Docker + systemd или 2 реплики на PaaS). Оставьте ровно один. |
+| `permission denied while trying to connect to the Docker daemon` | Запускайте через `sudo bash deploy.sh` или добавьте пользователя в группу: `sudo usermod -aG docker $USER` (нужен повторный вход). |
+| `unable to open database file` | Нет прав на каталог `data/`. Для systemd: `sudo chown -R hhbot:hhbot /opt/hh-parser-bot`. В контейнере бот сам готовит права, если стартует от root. |
+| `403` от `api.hh.ru` | `HH_USER_AGENT` должен содержать контакт: `hh-parser-bot/1.0 (you@example.com)`. |
+| Сборка Docker падает / процесс убит на e2-micro | Не хватает RAM: добавьте swap 2 ГБ (команды в разделе про GCP) или ставьте без Docker через systemd. |
+| `Не найден .env.example` при повторном `deploy.sh` | Обновите скрипт (в старых версиях повторный запуск не переходил в подпапку проекта). |
+| `система не имеет доступа к интернету` / SSL | Проверьте DNS и прокси; для pip можно передать `PIP_ARGS='--proxy http://…'` в `install.sh`. |
+
+Проверить конфигурацию без запуска:
+
+```bash
+docker compose config                        # валиден ли compose-файл
+python -m bot                                # без BOT_TOKEN завершится понятной ошибкой
+.venv/bin/python -m pytest -q                # тесты
+```
 
 ## Быстрый старт
 
