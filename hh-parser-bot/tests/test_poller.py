@@ -38,10 +38,15 @@ class FakeClient:
     def __init__(self, results: dict[str, list[HHVacancy]]) -> None:
         self.results = results
         self.search_calls = 0
+        self.detail_calls = 0
 
     async def search_vacancies(self, params):
         self.search_calls += 1
         return list(self.results.get(params.text, []))
+
+    async def get_vacancy(self, vacancy_id):
+        self.detail_calls += 1
+        return {"key_skills": [{"name": "Python"}, {"name": "SQL"}]}
 
     async def get_currency_rates(self):
         return {"RUR": 1.0}
@@ -200,3 +205,40 @@ async def test_failed_delivery_is_not_marked_as_sent(session, session_factory, s
     records = await repo.list_sent_for_subscription(session, user.id, subscriptions[0].id)
     assert records == []
     assert subscriptions[0].last_checked_at is not None
+
+
+async def test_key_skills_enriched_from_full_card(session, session_factory, settings):
+    """В выдаче /vacancies нет key_skills — они должны попасть в payload из карточки."""
+    user = await repo.get_or_create_user(session, telegram_id=1007)
+    await repo.create_subscription(
+        session, user.id, query="python", area_id=1, area_name="Москва"
+    )
+    await session.commit()
+
+    client = FakeClient({"python": [vacancy("v1")]})
+    notifier = StubNotifier()
+    poller = make_poller(settings, session_factory, client, notifier)
+
+    assert await poller.poll_once() == 1
+    assert client.detail_calls == 1
+
+    subscriptions = await repo.list_subscriptions(session, user.id)
+    records = await repo.list_sent_for_subscription(
+        session, user.id, subscriptions[0].id
+    )
+    assert records[0].payload["key_skills"] == ["Python", "SQL"]
+
+
+async def test_key_skills_enrichment_can_be_disabled(session, session_factory, settings):
+    user = await repo.get_or_create_user(session, telegram_id=1008)
+    await repo.create_subscription(
+        session, user.id, query="python", area_id=1, area_name="Москва"
+    )
+    await session.commit()
+
+    disabled = settings.model_copy(update={"fetch_key_skills": False})
+    client = FakeClient({"python": [vacancy("v1")]})
+    poller = make_poller(disabled, session_factory, client, StubNotifier())
+
+    assert await poller.poll_once() == 1
+    assert client.detail_calls == 0
