@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     # вакансии при отправке уведомления (нужно для топ-навыков в /stats).
     fetch_key_skills: bool = True
 
+    # --- Миграции ---
+    # true: при старте применяются Alembic-миграции (для продакшена).
+    # false: схема создаётся через create_all (тесты/разработка).
+    auto_migrate: bool = True
+
     # --- Логирование ---
     log_level: str = "INFO"
     log_file: str = "./data/logs/bot.log"

@@ -90,7 +90,7 @@ async def main(settings: Settings | None = None) -> None:
     apply_data_permissions(settings)
 
     engine = create_engine(settings)
-    await init_db(engine)
+    await init_db(engine, settings)
     session_factory = create_session_factory(engine)
 
     hh_client = HHClient(settings)

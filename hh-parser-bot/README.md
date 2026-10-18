@@ -1,5 +1,7 @@
 # hh-parser-bot 🤖
 
+[![CI](https://github.com/pashanoob1-commits/hh_pars/actions/workflows/ci.yml/badge.svg?branch=cline/cfs4mq4t)](https://github.com/pashanoob1-commits/hh_pars/actions/workflows/ci.yml)
+
 Мультипользовательский Telegram-бот для мониторинга новых вакансий на **hh.ru**
 через **официальный API** (`api.hh.ru`). Каждый пользователь настраивает свои
 поисковые подписки и получает уведомления только о новых вакансиях.
@@ -21,13 +23,14 @@
 - 🔔 **Уведомления с кнопками**: «🔥 Откликнуться», «⭐ В избранное», «🚫 Скрыть компанию». Избранное можно просматривать (`/favorites`) и удалять из него.
 - 🧼 **Безопасный вывод**: пользовательские запросы, названия компаний и регионов экранируются для HTML-режима Telegram.
 - 📊 **Аналитика**: медианная зарплата, топ-10 навыков, динамика по дням, экспорт в CSV.
+- 🗃 **Миграции БД**: Alembic для SQLite и PostgreSQL, применяются при старте; для старых БД автоматически ставится baseline.
 - 🐳 **Запуск**: `docker compose up -d --build` или `python -m bot` без Docker.
-- ✅ **Тесты**: 69 юнит-тестов (клиент API с замоканным httpx, дедупликация, валюты, фильтры, хендлеры, кнопки, flood control, планировщик).
+- ✅ **Тесты и CI**: 71 юнит-тест, ruff и покрытие в GitHub Actions; отдельный job прогоняет миграции на PostgreSQL 16.
 
 ## Стек
 
-Python 3.11+ · aiogram 3.x · httpx (async) · SQLAlchemy 2.0 (async) · aiosqlite ·
-APScheduler · pydantic-settings.
+Python 3.11+ · aiogram 3.x · httpx (async) · SQLAlchemy 2.0 (async) · Alembic ·
+aiosqlite · APScheduler · pydantic-settings.
 
 БД диалект-агностична: SQLite по умолчанию, для PostgreSQL достаточно поменять `DATABASE_URL`.
 
@@ -187,6 +190,8 @@ cp .env.example .env                # и заполните BOT_TOKEN / HH_USER_
 python -m bot
 ```
 
+При старте бот автоматически применяет Alembic-миграции (`AUTO_MIGRATE=true`).
+
 ### 3. Установка (Docker)
 
 ```bash
@@ -196,7 +201,8 @@ docker compose up -d --build
 docker compose logs -f bot
 ```
 
-SQLite-база и логи живут в volume `bot-data` (`/app/data` внутри контейнера).
+При старте контейнер применяет миграции, затем запускает бота. SQLite-база и
+логи живут в volume `bot-data` (`/app/data` внутри контейнера).
 
 ## Настройка `.env`
 
@@ -209,6 +215,7 @@ SQLite-база и логи живут в volume `bot-data` (`/app/data` вну�
 | `HH_MAX_RETRIES` | `5` | Число попыток при 429/5xx |
 | `HH_PER_PAGE` | `50` | Вакансий за запрос |
 | `DATABASE_URL` | `sqlite+aiosqlite:///./data/bot.db` | DSN БД (PostgreSQL: `postgresql+asyncpg://…`) |
+| `AUTO_MIGRATE` | `true` | Применять Alembic-миграции при старте; `false` — `create_all` (тесты/разработка) |
 | `POLL_INTERVAL_MINUTES` | `15` | Интервал опроса подписок |
 | `FIRST_RUN_LIMIT` | `5` | Сколько вакансий прислать при первой проверке подписки |
 | `BASE_CURRENCY` | `RUR` | Валюта, в которую нормализуются зарплаты |
@@ -288,8 +295,10 @@ hh-parser-bot/
 │   ├── services/            # бизнес-логика: подписки, дедуп, валюты, стоп-слова, статистика
 │   ├── middlewares/         # сессия БД + прокидывание зависимостей
 │   └── utils/               # логирование, работа со временем
-├── tests/                   # 69 юнит-тестов
-├── migrations/              # SQL-скрипт начальной схемы
+├── tests/                   # 71 юнит-тест
+├── bot/migrations/          # Alembic: env.py, versions/
+├── migrations/              # ручные SQL-скрипты: SQLite и PostgreSQL
+├── alembic.ini
 ├── .env.example
 ├── docker-compose.yml
 ├── Dockerfile
@@ -308,9 +317,25 @@ hh-parser-bot/
 | `blocked_employers` | Чёрный список компаний | unique (`user_id`, `employer_id`) |
 | `currencies` | Кэш курсов к RUR | `code`, `rate`, `updated_at` |
 
-Миграции для MVP — `Base.metadata.create_all` при старте (`init_db`).
-Тот же DDL в виде SQL-скрипта лежит в `migrations/001_init.sql` (для ручного
-применения или перехода на Alembic: модели декларативные и диалект-агностичные).
+### Миграции
+
+Схема ведётся через **Alembic** (`bot/migrations/versions/`). При старте бот
+применяет `upgrade head` (`AUTO_MIGRATE=true`). Если БД создана прежними версиями
+через `create_all` и в ней нет `alembic_version`, схема автоматически помечается
+как базовая — данные не теряются.
+
+```bash
+python -m bot.db.migrate upgrade      # применить миграции (по умолчанию)
+python -m bot.db.migrate current      # текущая ревизия
+python -m bot.db.migrate downgrade    # откатить всё
+
+# эквивалент через CLI:
+alembic upgrade head
+```
+
+Ручные SQL-скрипты (эквивалент начальной миграции):
+`migrations/001_init.sql` (SQLite) и `migrations/001_init.postgres.sql` (PostgreSQL,
+`SERIAL`/`JSONB`/`TIMESTAMPTZ`).
 
 ### Как работает планировщик
 
@@ -336,7 +361,19 @@ hh-parser-bot/
 ```bash
 pip install -r requirements-dev.txt
 pytest -q
+
+# с покрытием (в CI порог 65%)
+pytest -q --cov=bot --cov-report=term-missing
 ```
+
+CI (`.github/workflows/ci.yml`) гоняет ruff и тесты на Python 3.11/3.12, а
+отдельный job поднимает PostgreSQL 16, применяет миграции, проверяет схему и
+делает `downgrade base`.
+
+> Готовый workflow лежит в `deploy/github-actions/ci.yml` (в этой среде нельзя
+> пушить файлы в `.github/workflows/`). Включить:
+> `bash deploy/enable-ci.sh`, затем закоммитить и запушить созданный
+> `.github/workflows/ci.yml`.
 
 Покрыто: нормализация ответов API и retry (respx), поиск регионов, курсы валют,
 конвертация зарплат, дедупликация, стоп-слова, чёрный список, вилка и watermark,
@@ -347,7 +384,8 @@ pytest -q
 ## Дорожная карта
 
 - [x] MVP: подписки, планировщик, дедупликация, стоп-слова, чёрный список, валюты, CSV-экспорт
-- [ ] Alembic-миграции вместо `create_all`
+- [x] Alembic-миграции вместо `create_all` (автоприменение, baseline для старых БД)
+- [x] CI: ruff, тесты на 3.11/3.12, покрытие, миграции на PostgreSQL
 - [ ] Больше источников поиска (несколько запросов на подписку, remote-only)
 - [x] Топ навыков из полных карточек вакансий (`/vacancies/{id}`, флаг `FETCH_KEY_SKILLS`)
 - [ ] Веб-панель администратора

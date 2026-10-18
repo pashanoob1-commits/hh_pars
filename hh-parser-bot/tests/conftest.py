@@ -26,6 +26,7 @@ def settings(tmp_path) -> Settings:
         first_run_limit=2,
         max_subscriptions_per_user=3,
         currency_cache_hours=24,
+        auto_migrate=False,
     )
 
 
