@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def utcnow() -> datetime:
     """Текущее время в UTC (aware)."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def ensure_aware(value: datetime) -> datetime:
     """Приводит naive datetime к UTC-aware (значения из SQLite бывают naive)."""
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
+        return value.replace(tzinfo=UTC)
     return value
 
 
 def to_utc(value: datetime) -> datetime:
-    return ensure_aware(value).astimezone(timezone.utc)
+    return ensure_aware(value).astimezone(UTC)

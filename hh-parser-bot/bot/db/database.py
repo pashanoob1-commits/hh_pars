@@ -27,11 +27,15 @@ def create_engine(settings: Settings) -> AsyncEngine:
     engine = create_async_engine(settings.database_url, future=True)
 
     if settings.is_sqlite:
-        # SQLite по умолчанию не проверяет внешние ключи — включаем.
+        # SQLite по умолчанию не проверяет внешние ключи и не ждёт освобождения
+        # блокировки — включаем FK, WAL и таймаут, чтобы планировщик и хендлеры
+        # не получали «database is locked».
         @event.listens_for(engine.sync_engine, "connect")
-        def _enable_sqlite_fk(dbapi_connection, _record) -> None:  # pragma: no cover
+        def _configure_sqlite(dbapi_connection, _record) -> None:  # pragma: no cover
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA busy_timeout=5000")
             cursor.close()
 
     return engine

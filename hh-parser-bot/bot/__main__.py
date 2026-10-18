@@ -11,6 +11,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import BotCommand
 
 from bot.config import Settings, get_settings
 from bot.db.database import create_engine, create_session_factory, init_db
@@ -37,6 +38,29 @@ def ensure_sqlite_directory(settings: Settings) -> None:
     if not path or path == ":memory:":
         return
     Path(path).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
+
+
+BOT_COMMANDS = [
+    BotCommand(command="add", description="Создать подписку"),
+    BotCommand(command="list", description="Мои подписки"),
+    BotCommand(command="del", description="Удалить подписку"),
+    BotCommand(command="pause", description="Приостановить подписку"),
+    BotCommand(command="resume", description="Возобновить подписку"),
+    BotCommand(command="stopwords", description="Стоп-слова подписки"),
+    BotCommand(command="favorites", description="Избранные вакансии"),
+    BotCommand(command="unblock", description="Чёрный список компаний"),
+    BotCommand(command="stats", description="Статистика и CSV"),
+    BotCommand(command="cancel", description="Отменить диалог"),
+    BotCommand(command="help", description="Справка"),
+]
+
+
+async def _set_bot_commands(bot: Bot) -> None:
+    """Показывает список команд в меню Telegram (не критично для запуска)."""
+    try:
+        await bot.set_my_commands(BOT_COMMANDS)
+    except Exception as exc:  # noqa: BLE001 — меню не должно ронять бота
+        logger.warning("Не удалось установить меню команд: %s", exc)
 
 
 def build_dispatcher(
@@ -74,6 +98,7 @@ async def main(settings: Settings | None = None) -> None:
         token=settings.bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
+    await _set_bot_commands(bot)
     dispatcher = build_dispatcher(settings, session_factory, hh_client)
 
     scheduler = create_scheduler(

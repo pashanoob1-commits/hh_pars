@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from bot.hh_api.models import HHVacancy
 from bot.services.filters import (
@@ -75,7 +75,7 @@ def test_filter_by_salary_max_keeps_vacancies_without_salary():
 
 
 def test_filter_newer_than_watermark():
-    now = datetime(2024, 5, 1, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2024, 5, 1, 12, 0, tzinfo=UTC)
     old = vacancy("old", published_at=now - timedelta(hours=2))
     fresh = vacancy("new", published_at=now + timedelta(minutes=5))
 
@@ -86,7 +86,7 @@ def test_filter_newer_than_watermark():
 
 
 def test_apply_subscription_filters_combined():
-    now = datetime(2024, 5, 1, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2024, 5, 1, 12, 0, tzinfo=UTC)
     items = [
         vacancy("keep", published_at=now + timedelta(minutes=1)),
         vacancy("stopword", name="Python, продажи", published_at=now + timedelta(minutes=1)),

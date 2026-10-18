@@ -278,6 +278,19 @@ async def remove_blocked_employer(session: AsyncSession, user_id: int, blocker_i
     return bool(result.rowcount)
 
 
+async def remove_blocked_employer_by_employer_id(
+    session: AsyncSession, user_id: int, employer_id: str
+) -> bool:
+    """Удаляет компанию из ЧС по id работодателя на hh.ru (а не по PK записи)."""
+    result = await session.execute(
+        delete(BlockedEmployer).where(
+            BlockedEmployer.user_id == user_id,
+            BlockedEmployer.employer_id == employer_id,
+        )
+    )
+    return bool(result.rowcount)
+
+
 # --- Курсы валют -----------------------------------------------------------
 async def get_cached_rates(session: AsyncSession) -> dict[str, float]:
     result = await session.scalars(select(CurrencyRate))

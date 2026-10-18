@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from html import escape
+
 from aiogram import Router
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
@@ -45,7 +47,7 @@ async def cmd_start(
         username=message.from_user.username,
     )
     await message.answer(
-        f"Привет, {message.from_user.full_name}! 👋\n\n"
+        f"Привет, {escape(message.from_user.full_name)}! 👋\n\n"
         "Я слежу за новыми вакансиями на hh.ru и присылаю их по вашим подпискам.\n"
         f"Интервал проверки: каждые {settings.poll_interval_minutes} мин. Лимит подписок: {settings.max_subscriptions_per_user}.\n\n"
         "Начните с команды /add — создам первую подписку.\n"
